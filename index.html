@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Raspadita Casino — Yanny Santos</title>
+<style>
+:root{--gold:#ffd45a;--pink:#ff2b85}*{box-sizing:border-box}
+body{margin:0;min-height:100vh;color:#fff;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:radial-gradient(circle at top,#591027 0,#170714 52%,#050407 100%);padding:14px 10px 26px}
+.wrap{max-width:650px;margin:auto}.hero{text-align:center;padding:10px 5px 16px}.kicker{color:#ffb6d3;letter-spacing:2px;font-size:.75rem;font-weight:900}
+h1{font-size:clamp(2.1rem,9vw,3.8rem);line-height:.95;margin:10px 0;color:var(--gold);text-shadow:0 3px 0 #8d3d00,0 0 22px #ff2b85}.brand{font-family:Georgia,serif;font-style:italic;font-size:clamp(1.5rem,6vw,2.2rem)}
+.sub{color:#ffe7a0;font-weight:850;margin:10px auto 0}.panel{border:2px solid var(--gold);border-radius:22px;padding:10px;background:linear-gradient(145deg,#280b1c,#080609);box-shadow:0 0 24px #ffbd3944}
+.rules{text-align:center;color:#ffe9ad;font-size:.88rem;line-height:1.4;margin:0 auto 12px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.tile{position:relative;aspect-ratio:1/1;overflow:hidden;border-radius:12px;background:#ffd66d;border:2px solid #ffdf76;touch-action:none}
+.prize{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:3px;color:#301020;background:radial-gradient(circle,#fff8d6,#ffc94c);font-weight:950}
+.emoji{font-size:clamp(1.65rem,8vw,2.7rem);line-height:1.15}.word{font-size:clamp(.58rem,2.5vw,.9rem);line-height:1.05}
+canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.status{text-align:center;min-height:3em;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff2bd;margin-top:10px;line-height:1.3}
+.controls{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin:13px 0}button{border:0;border-radius:999px;padding:11px 16px;font-weight:900;cursor:pointer}
+#reset{background:var(--gold);color:#35101c}#reveal{background:#ff2b85;color:#fff}
+.footer{text-align:center;color:#ffe7a0;font-family:Georgia,serif;font-style:italic;font-size:1.12rem;padding:10px 0 4px}
+.note{text-align:center;color:#d9c8d2;font-size:.74rem;line-height:1.4;margin-top:10px}
+@media(max-width:360px){.grid{gap:5px}.panel{padding:7px}.tile{border-radius:8px}}
+</style>
+</head>
+<body><div class="wrap">
+<header class="hero"><div class="kicker">✨ ¡DESCUBRÍ SI LA SUERTE ESTÁ DE TU LADO! ✨</div><h1>RASPADITAS<br>ONLINE</h1><div class="brand">Yanny Santos ♡</div><div class="sub">¡RASPA LAS 9 CASILLAS!</div></header>
+<main class="panel"><p class="rules">🎱 <b>Regla:</b> descubrí los 9 símbolos. Si hay <b>3 símbolos iguales</b> en cualquier parte, ¡ganás!<br>Si no aparece ningún grupo de 3 iguales, no hay premio.</p><div class="grid" id="grid" aria-label="Nueve casilleros de raspadita"></div><div class="status" id="status">Raspá los 9 casilleros con tu dedo para descubrir los símbolos 👆</div></main>
+<div class="controls"><button id="reset">🔄 Nueva raspadita</button></div><div class="footer">¡Mucha suerte! ♡</div><div class="note">Versión de demostración: los resultados se generan en el dispositivo. Aún falta conectar el control de códigos y jugadas.</div>
+</div>
+<script>
+const symbols=[
+ {emoji:"🔴",word:"PELOTA ROJA",id:"red"},
+ {emoji:"⚽",word:"PELOTA DE FÚTBOL",id:"ball"},
+ {emoji:"🟡",word:"PELOTA AMARILLA",id:"yellow"},
+ {emoji:"💎",word:"DIAMANTE",id:"diamond"},
+ {emoji:"⭐",word:"ESTRELLA",id:"star"}
+];
+const grid=document.getElementById('grid'),status=document.getElementById('status');let cards=[],gameOver=false;
+function shuffle(a){return a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(x=>x[1])}
+function makeCard(sym,i){
+ const tile=document.createElement('div');tile.className='tile';const prize=document.createElement('div');prize.className='prize';
+ prize.innerHTML=`<div class="emoji">${sym.emoji}</div><div class="word">${sym.word}</div>`;
+ const canvas=document.createElement('canvas');tile.append(prize,canvas);grid.append(tile);const ctx=canvas.getContext('2d',{willReadFrequently:true});
+ function size(){const r=tile.getBoundingClientRect(),dpr=Math.max(1,window.devicePixelRatio||1);canvas.width=Math.round(r.width*dpr);canvas.height=Math.round(r.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);const w=r.width,h=r.height,grad=ctx.createLinearGradient(0,0,w,h);grad.addColorStop(0,'#f8f8f8');grad.addColorStop(.5,'#aeb1b8');grad.addColorStop(1,'#e9e9ed');ctx.globalCompositeOperation='source-over';ctx.fillStyle=grad;ctx.fillRect(0,0,w,h);ctx.fillStyle='#4a2435';ctx.textAlign='center';ctx.font='900 15px system-ui';ctx.fillText('RASPA',w/2,h/2-8);ctx.fillText('AQUÍ',w/2,h/2+12);ctx.font='20px system-ui';ctx.fillText('★',w/2,h/2+37)}
+ size();window.addEventListener('resize',size);let drawing=false,revealed=false;
+ function pos(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+ function scratch(e){if(!drawing||revealed||gameOver)return;const p=pos(e);ctx.globalCompositeOperation='destination-out';ctx.beginPath();ctx.arc(p.x,p.y,18,0,Math.PI*2);ctx.fill()}
+ function start(e){if(revealed||gameOver)return;drawing=true;canvas.setPointerCapture?.(e.pointerId);scratch(e);e.preventDefault()}
+ function end(){if(!drawing)return;drawing=false;checkProgress()}
+ function checkProgress(){const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;let clear=0;for(let j=3;j<data.length;j+=4)if(data[j]<80)clear++;if(clear/(data.length/4)>.38){canvas.style.opacity='0';canvas.style.pointerEvents='none';revealed=true;cards[i].revealed=true;checkGame()}}
+ function reveal(){canvas.style.opacity='0';canvas.style.pointerEvents='none';revealed=true;cards[i].revealed=true}
+ canvas.addEventListener('pointerdown',start);canvas.addEventListener('pointermove',scratch);canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);
+ return {tile,canvas,reveal,sym,get revealed(){return revealed}};
+}
+function checkGame(){const n=cards.filter(c=>c.revealed).length;if(n<9){status.textContent=`Ya descubriste ${n} de 9 casillas. ¡Seguí raspando! ✨`;return}
+ gameOver=true;const counts={};cards.forEach(c=>counts[c.sym.id]=(counts[c.sym.id]||0)+1);
+ const winner=Object.values(counts).some(v=>v>=3);
+ status.textContent=winner?'🎉 ¡HAY 3 SÍMBOLOS IGUALES! ¡GANASTE! 🎉':'🍀 No salió ningún grupo de 3 iguales. ¡Gracias por jugar!';
+}
+function init(){grid.innerHTML='';cards=[];gameOver=false;
+ const isWin=Math.random()<.4;let chosen=[];
+ if(isWin){const s=symbols[Math.floor(Math.random()*symbols.length)];chosen=[s,s,s,...shuffle(symbols.filter(x=>x.id!==s.id)).slice(0,6)];}
+ else {chosen=[...symbols];while(chosen.length<9)chosen.push(symbols[Math.floor(Math.random()*symbols.length)]);let counts={};chosen.forEach(s=>counts[s.id]=(counts[s.id]||0)+1);while(Object.values(counts).some(v=>v>=3)){chosen=shuffle(symbols).slice(0,3);chosen=[...chosen,...shuffle(symbols).slice(0,3),...shuffle(symbols).slice(0,3)];counts={};chosen.forEach(s=>counts[s.id]=(counts[s.id]||0)+1)}}
+ chosen=shuffle(chosen);chosen.forEach((s,i)=>cards.push(makeCard(s,i)));status.textContent='Raspá las 9 casillas con tu dedo para descubrir los símbolos 👆';
+}
+document.getElementById('reset').addEventListener('click',init);init();
+</script></body></html>
